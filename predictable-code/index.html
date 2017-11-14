@@ -1,0 +1,1113 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Predictable Code</title>
+    <meta name="description" content="Avoiding bugs by avoiding surprise">
+    <meta name="author" content="Robin Munn">
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <script src="//code.jquery.com/jquery-1.8.0.js"></script>
+    <script src="//code.jquery.com/ui/1.8.23/jquery-ui.js"></script>
+    <script src="//netdna.bootstrapcdn.com/twitter-bootstrap/2.2.1/js/bootstrap.min.js"></script>
+    <script type="text/javascript" src="//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link href="//netdna.bootstrapcdn.com/twitter-bootstrap/2.2.1/css/bootstrap-combined.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="css/reveal.css">
+    <link rel="stylesheet" href="css/theme/night.css" id="theme">
+    <link type="text/css" rel="stylesheet" href="fsharp.formatting/styles/style.css" />
+    <link type="text/css" rel="stylesheet" href="fsharp.formatting/styles/deedle.css" />
+    <link type="text/css" rel="stylesheet" href="css/custom.css" />
+    <script src="fsharp.formatting/styles/tips.js" type="text/javascript"></script>
+    <!-- For syntax highlighting -->
+    <link rel="stylesheet" href="lib/css/zenburn.css">
+    <link rel="stylesheet" href="css/fsreveal.css">
+    <!-- If the query includes 'print-pdf', include the PDF print sheet -->
+    <script>
+			if( window.location.search.match( /print-pdf/gi ) ) {
+				var link = document.createElement( 'link' );
+				link.rel = 'stylesheet';
+				link.type = 'text/css';
+				link.href = 'css/print/pdf.css';
+				document.getElementsByTagName( 'head' )[0].appendChild( link );
+			}
+    </script>
+    <!--[if lt IE 9]>
+    <script src="lib/js/html5shiv.js"></script>
+    <![endif]-->
+    <script language="javascript" type="text/javascript">
+        function init()
+        {
+            websocket = new WebSocket("ws://"+window.location.host+"/websocket");
+            websocket.onmessage = function(evt) { location.reload(); };
+        }
+        window.addEventListener("load", init, false);
+    </script>
+</head>
+<body>
+    <div class="reveal">
+        
+        <!-- Any section element inside of this container is displayed as a slide -->
+        <div class="slides">
+            <section >
+<h2>Predictable code</h2>
+</section>
+<section >
+<section >
+<h2>What causes bugs?</h2>
+<aside class="notes">
+"James 4:1": What causes bugs and runtime errors among you?<br/>
+<br/>
+The answer is *surprise*. You thought you knew what would happen, but what actually<br/>
+happened was not what you expected, so the code you wrote will do the wrong thing.<br/>
+E.g.,:<br/>
+<br/>
+- What? A null? I didn't expect that function to ever return null. Oops.<br/>
+- What? A deadlock? I didn't expect these two threads to execute instructions in precisely that order. Oops.<br/>
+- What? Why did that global variable change? Oh, this function has a side-effect of changing global state. It shouldn't do that!<br/>
+    - (Not all surprise is your fault; sometimes the function you're calling is badly written.)<br/>
+</aside>
+<ul>
+<li>The root cause of all bugs is... </li>
+<ul style="list-style: none" class="fragment"> <li><strong>SURPRISE</strong> </li></ul>
+<li class="fragment">What? A <code>null</code>? I didn't expect that function to return null!</li>
+<li class="fragment">What? A deadlock? I didn't expect the threads to run in that order!</li>
+<li class="fragment">What? Why did that global variable change?</li>
+<ul class="fragment"><li>... Oh. That other function changed it; that shouldn't have happened!</li>
+    <li>(Not all surprise is your fault)</li></ul>
+</ul>
+</section>
+<section >
+<h2>How to avoid surprise</h2>
+<ul>
+<li>Write <em>predictable</em> code</li>
+<li>Write <em>simple</em> code
+<ul>
+<li class="fragment">Complexity causes misunderstanding</li>
+<li class="fragment">Misunderstanding causes surprise</li>
+<li class="fragment">Surprise causes bugs</li>
+<li class="fragment">The path to the Green Screen are these</li>
+</ul></li></ul>
+<aside class="notes">
+Next slide: How do we avoid surprise?<br/>
+<br/>
+- Write *predictable* code. Your code should not contain any hidden surprises for other programmers.<br/>
+- Write *simple* code. Complexity causes misunderstanding, because you get to a point where<br/>
+  you can't hold the whole system in your head any longer. At that point, you start<br/>
+  to make mistakes where you thought that function you're calling works one way, but<br/>
+  it actually works another way.<br/>
+</aside>
+</section>
+</section>
+<section >
+<h2>What makes code predictable?</h2>
+<ul>
+<li>Hard to answer succinctly</li>
+</ul>
+<aside class="notes">
+Hard to answer succinctly. Let's look at a different question first.<br/>
+</aside>
+</section>
+<section >
+<section >
+<h2>What makes code <strong>UN</strong>predictable?</h2>
+<ul>
+<li>Easier to answer</li>
+<li>Let's look at some examples</li>
+</ul>
+</section>
+<section >
+<h4>Sample function</h4>
+<table class="pre"><tr><td class="lines"><pre class="fssnip"><span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+<span class="l">5: </span>
+<span class="l">6: </span>
+<span class="l">7: </span>
+<span class="l">8: </span>
+<span class="l">9: </span>
+</pre></td>
+<td class="snippet"><pre class="fssnip highlighted"><code lang="cs"><span class="k">void</span> MyFunction(<span class="k">int</span>[] input) {
+    <span class="k">foreach</span> (<span class="k">int</span> i <span class="k">in</span> input) {
+        <span class="k">if</span> (i <span class="o">&lt;</span> <span class="n">0</span>) {
+            <span class="k">throw</span> <span class="k">new</span> InvalidSquareRootException(i);
+        } <span class="k">else</span> {
+            Console.WriteLine(<span class="s">"Square root of {0} is {1}"</span>, i, Math.Sqrt(i));
+        }
+    }
+}
+</code></pre></td></tr></table>
+<aside class="notes">
+Let's say we have some code that requires valid input, and throws an exception if the input is invalid.<br/>
+We'll use this function in the next couple of examples.<br/>
+</aside>
+</section>
+<section >
+<h4>Calling it with known data</h4>
+<table class="pre"><tr><td class="lines"><pre class="fssnip"><span class="l">1: </span>
+<span class="l">2: </span>
+</pre></td>
+<td class="snippet"><pre class="fssnip highlighted"><code lang="cs"><span class="k">var</span> myImportantData <span class="o">=</span> <span class="k">new</span> <span class="k">int</span>[] { <span class="n">1</span>,<span class="n">2</span>,<span class="n">3</span> };
+MyOwnCode.MyFunction(myImportantData);
+</code></pre></td></tr></table>
+<ul>
+<li>What is the value of <code>myImportantData</code> here?</li>
+<li>This code is predictable</li>
+</ul>
+<aside class="notes">
+What data will my function receive? I can predict that. BUT...<br/>
+</aside>
+</section>
+<section >
+<h4>But what will happen now?</h4>
+<table class="pre"><tr><td class="lines"><pre class="fssnip"><span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+</pre></td>
+<td class="snippet"><pre class="fssnip highlighted"><code lang="cs"><span class="k">var</span> myImportantData <span class="o">=</span> <span class="k">new</span> <span class="k">int</span>[] { <span class="n">1</span>,<span class="n">2</span>,<span class="n">3</span> };
+SomeoneElsesCode.OtherFunction(myImportantData);
+MyOwnCode.MyFunction(myImportantData);
+</code></pre></td></tr></table>
+<ul>
+<li>Now what is the value of <code>myImportantData</code>?</li>
+<li class="fragment">This code is <strong>un</strong>predictable
+<ul><li>At least until you know what <code>OtherFunction</code> does</li></li>
+</ul>
+<aside class="notes">
+How about now? Can I still count on this function not throwing an exception?<br/>
+*Only* if `OtherFunction` is predictable. What if `OtherFunction` looks like this?<br/>
+</aside>
+</section>
+<section >
+<h4>The other function behind the curtain</h4>
+<table class="pre"><tr><td class="lines"><pre class="fssnip"><span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+<span class="l">5: </span>
+<span class="l">6: </span>
+<span class="l">7: </span>
+</pre></td>
+<td class="snippet"><pre class="fssnip highlighted"><code lang="cs"><span class="k">void</span> OtherFunction(<span class="k">int</span>[] input) {
+    <span class="k">for</span> (<span class="k">int</span> i=<span class="n">0</span>; i&lt;input.Length; i+<span class="o">+</span>) {
+        <span class="k">if</span> (input[i] <span class="o">%</span> <span class="n">2</span> <span class="o">=</span><span class="o">=</span> <span class="n">0</span>) {
+            input[i] <span class="o">=</span> -input[i];
+        }
+    }
+}
+</code></pre></td></tr></table>
+<ul>
+<li>Note that <code>OtherFunction</code> modifies its input in-place</li>
+</ul>
+<aside class="notes">
+This is a silly, contrived example, of course. But I'm keeping it simple so that<br/>
+the examples are easy to understand at a glance. In real code, the modification might be<br/>
+normalizing every string in the input to NFC, or something else that's sensible.<br/>
+</aside>
+</section>
+<section >
+<h4>I can't predict my own code!</h4>
+<table class="pre"><tr><td class="lines"><pre class="fssnip"><span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+</pre></td>
+<td class="snippet"><pre class="fssnip highlighted"><code lang="cs"><span class="k">var</span> myImportantData <span class="o">=</span> <span class="k">new</span> <span class="k">int</span>[] { <span class="n">1</span>,<span class="n">2</span>,<span class="n">3</span> };
+SomeoneElsesCode.OtherFunction(myImportantData);
+MyOwnCode.MyFunction(myImportantData);  <span class="c">// Throws an exception!</span>
+</code></pre></td></tr></table>
+<ul>
+<li>I cannot predict how my own code will behave!</li>
+<li>This will certainly cause a bug sooner or later</li>
+</ul>
+<aside class="notes">
+Because `OtherFunction` modifies its input in-place, suddenly I cannot predict<br/>
+how my own code is going to behave. I have to know the implementation of<br/>
+`OtherFunction` before I can actually trust my own code. So my code has become<br/>
+less predictable, and my mental burden is higher.<br/>
+<br/>
+How could we have made `OtherFunction` more predictable? Well, if it didn't modify<br/>
+its input, then it would have looked like this:<br/>
+</aside>
+</section>
+<section >
+<h4>Safer implementation</h4>
+<table class="pre"><tr><td class="lines"><pre class="fssnip"><span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+<span class="l">5: </span>
+<span class="l">6: </span>
+<span class="l">7: </span>
+<span class="l">8: </span>
+<span class="l">9: </span>
+</pre></td>
+<td class="snippet"><pre class="fssnip highlighted"><code lang="cs"><span class="k">int</span>[] OtherFunction(<span class="k">int</span>[] input) {
+    <span class="k">int</span>[] result <span class="o">=</span> input.Clone()
+    <span class="k">for</span> (<span class="k">int</span> i=<span class="n">0</span>; i&lt;result.Length; i+<span class="o">+</span>) {
+        <span class="k">if</span> (result[i] <span class="o">%</span> <span class="n">2</span> <span class="o">=</span><span class="o">=</span> <span class="n">0</span>) {
+            result[i] <span class="o">=</span> -result[i];
+        }
+    }
+    <span class="k">return</span> result;
+}
+</code></pre></td></tr></table>
+<aside class="notes">
+Now instead of modifying its input in-place, it returns a new output<br/>
+With that implementation, if we now did this:<br/>
+</aside>
+</section>
+<section >
+<h4>Now I can predict my own code again!</h4>
+<table class="pre"><tr><td class="lines"><pre class="fssnip"><span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+</pre></td>
+<td class="snippet"><pre class="fssnip highlighted"><code lang="cs"><span class="k">var</span> myImportantData <span class="o">=</span> <span class="k">new</span> <span class="k">int</span>[] { <span class="n">1</span>,<span class="n">2</span>,<span class="n">3</span> };
+SomeoneElsesCode.OtherFunction(myImportantData);
+MyOwnCode.MyFunction(myImportantData);
+</code></pre></td></tr></table>
+<aside class="notes">
+Or rather, this: (slide transition is a fade for this one: put it before AND after in the HTML):<br/>
+</aside>
+</section>
+<section >
+<h4>Now I can predict my own code again!</h4>
+<table class="pre"><tr><td class="lines"><pre class="fssnip"><span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+</pre></td>
+<td class="snippet"><pre class="fssnip highlighted"><code lang="cs"><span class="k">var</span> myImportantData <span class="o">=</span> <span class="k">new</span> <span class="k">int</span>[] { <span class="n">1</span>,<span class="n">2</span>,<span class="n">3</span> };
+<span class="k">var</span> resultForLater <span class="o">=</span> SomeoneElsesCode.OtherFunction(myImportantData);
+MyOwnCode.MyFunction(myImportantData);
+</code></pre></td></tr></table>
+<ul>
+<li>Now we know <code>myImportantData</code> will not change</li>
+</ul>
+<aside class="notes">
+This allows us to predict what `MyFunction` will do with my important data,<br/>
+because we know that it's not going to be changed by someone else's code.<br/>
+So this brings us to the first principle of writing predictable functions:<br/>
+</aside>
+</section>
+<section >
+<h3>Predictable Principles</h3>
+<ol>
+<li>
+Predictable functions should not modify their input.
+<ul>
+<li>Return a new value instead.</li>
+</ul>
+</li>
+</ol>
+<aside class="notes">
+Now, sometimes the code that's calling your function might *expect* the input<br/>
+to be modified, if you've documented it well. None of these rules are set in<br/>
+stone, and there are exceptions to all of them. But *in general*, you want to<br/>
+not modify your input if you can avoid it.<br/>
+</aside>
+</section>
+<section >
+<h3>Another example</h3>
+<table class="pre"><tr><td class="lines"><pre class="fssnip"><span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+<span class="l">5: </span>
+<span class="l">6: </span>
+<span class="l">7: </span>
+<span class="l">8: </span>
+<span class="l">9: </span>
+</pre></td>
+<td class="snippet"><pre class="fssnip highlighted"><code lang="cs"><span class="k">enum</span> MoonPhase { NEW, WAXING, FULL, WANING };
+MoonPhase currentPhase;
+<span class="k">bool</span> isTheMoonFull() {
+    <span class="k">return</span> (currentPhase <span class="o">=</span><span class="o">=</span> MoonPhase.FULL);
+}
+
+IPerson createPerson(<span class="k">string</span> name) {
+    <span class="k">return</span> isTheMoonFull() <span class="o">?</span> <span class="k">new</span> Werewolf(name) <span class="o">:</span> <span class="k">new</span> Person(name);
+}
+</code></pre></td></tr></table>
+<ul>
+<li>What will <code>createPerson()</code> do?</li>
+<li>Can't tell just by looking at input</li>
+<li>Depends on some external source</li>
+</ul>
+<aside class="notes">
+What will happen when I call `createPerson()`? I don't actually know just by<br/>
+looking at the inputs. Its output will vary based on some global variable,<br/>
+which might even be in a different file — or maybe theMoonIsFull() is a method<br/>
+from a different class or something — `if (theMoon.IsFull) { ... }`.<br/>
+<br/>
+This example actually gives us both the second AND third rules of predictable functions:<br/>
+</aside>
+</section>
+<section >
+<h3>Predictable Principles</h3>
+<ol>
+<li>
+Predictable functions should not modify their input.
+<ul>
+<li>Return a new value instead.</li>
+</ul>
+</li>
+<li>
+Predictable functions should depend only on their input.
+<ul>
+<li>(By the way, this also greatly simplifies unit testing)</li>
+</ul>
+</li>
+<li>
+Predictable functions should be idempotent.
+<ul>
+<li>Given same input, always return same output</li>
+<li>(BTW, this allows optimization by caching)</li>
+</ul>
+</li>
+</ol>
+<aside class="notes">
+3. Predictable functions when given the same input, should always return the same value.<br/>
+<br/>
+Now, sometimes the code that's calling your function might *expect* the input<br/>
+to be modified, if you've documented it well. None of these rules are set in<br/>
+stone, and there are exceptions to all of them. But *in general*, you want to<br/>
+not modify your input if you can avoid it.<br/>
+</aside>
+</section>
+<section >
+<h4>Why is this code unpredictable?</h4>
+<table class="pre"><tr><td class="lines"><pre class="fssnip"><span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+<span class="l">5: </span>
+<span class="l">6: </span>
+<span class="l">7: </span>
+<span class="l">8: </span>
+<span class="l">9: </span>
+</pre></td>
+<td class="snippet"><pre class="fssnip highlighted"><code lang="cs"><span class="k">enum</span> MoonPhase { NEW, WAXING, FULL, WANING };
+MoonPhase currentPhase;
+<span class="k">bool</span> isTheMoonFull() {
+    <span class="k">return</span> (currentPhase <span class="o">=</span><span class="o">=</span> MoonPhase.FULL);
+}
+
+IPerson createPerson(<span class="k">string</span> name) {
+    <span class="k">return</span> isTheMoonFull() <span class="o">?</span> <span class="k">new</span> Werewolf(name) <span class="o">:</span> <span class="k">new</span> Person(name);
+}
+</code></pre></td></tr></table>
+<ul>
+<li>
+The <code>createPerson</code> function here breaks two rules
+<ul>
+<li>Has an external dependency</li>
+<li>Output can vary even with same input</li>
+</ul>
+</li>
+</ul>
+<aside class="notes">
+The `createPerson` function here breaks both of these rules. The `isTheMoonFull()` function<br/>
+creates an external dependency on the current moon phase, which is not reflected in the<br/>
+function signature of `createPerson`. In this example, of course, both functions fit on the<br/>
+same screen so it's easy to spot the external dependency, but in real code, those functions<br/>
+might get moved further apart in the file, or even moved into different files, which would<br/>
+eventually result in surprise (and thus, bugs). "What? I had no idea that the `createPerson`<br/>
+function would depend on the moon phase!" And so you write code that assumes that you'll<br/>
+always get a Person instance, and when it receives a Werewolf instance instead (which has<br/>
+different behavior), your code has bugs because you didn't anticipate that possibility.<br/>
+Programmer surprise == bugs.<br/>
+<br/>
+And the `createPerson` function also breaks the third rule of predictable functions, because<br/>
+its output will not always be the same. One day I call `createPerson("Warren Zevon")` and I<br/>
+get a `Person` instance, then a week later I call the same function with the same input and<br/>
+I get a `Werewolf` instance.<br/>
+</aside>
+</section>
+<section >
+<ul>
+<li>Unpredictability is not always bad</li>
+<li><code>Random.Next()</code> <em>should</em> be unpredictable</li>
+<li>So should <code>DateTime.UtcNow</code>, for other reasons</li>
+</ul>
+<aside class="notes">
+NOTE: This is not always bad. For example, the function `Random.Next()` and the property<br/>
+`DateTime.UtcNow` are both unpredictable — but they *should* be unpredictable, or they're<br/>
+not doing what they should be doing.<br/>
+</aside>
+</section>
+<section >
+<table class="pre"><tr><td class="lines"><pre class="fssnip"><span class="l"> 1: </span>
+<span class="l"> 2: </span>
+<span class="l"> 3: </span>
+<span class="l"> 4: </span>
+<span class="l"> 5: </span>
+<span class="l"> 6: </span>
+<span class="l"> 7: </span>
+<span class="l"> 8: </span>
+<span class="l"> 9: </span>
+<span class="l">10: </span>
+<span class="l">11: </span>
+<span class="l">12: </span>
+<span class="l">13: </span>
+<span class="l">14: </span>
+<span class="l">15: </span>
+<span class="l">16: </span>
+<span class="l">17: </span>
+</pre></td>
+<td class="snippet"><pre class="fssnip highlighted"><code lang="cs"><span class="k">class</span> Werewolf {
+    <span class="k">private</span> <span class="k">bool</span> _inWolfForm <span class="o">=</span> <span class="k">false</span>;
+    <span class="k">public</span> <span class="k">void</span> checkMoonPhase(IMoonPhase theMoon) {
+        _inWolfForm <span class="o">=</span> theMoon.IsFull <span class="o">?</span> <span class="k">true</span> <span class="o">:</span> <span class="k">false</span>;
+    }
+    <span class="k">public</span> <span class="k">string</span> visit(<span class="k">string</span> cityName) {
+        <span class="k">if</span> (_inWolfForm <span class="o">|</span><span class="o">|</span> cityName <span class="o">=</span><span class="o">=</span> <span class="s">"London"</span>) {
+            <span class="k">return</span> <span class="s">"Awoooo!"</span>;
+        } <span class="k">else</span> {
+            <span class="k">return</span> $<span class="s">"Hello, {cityName}!"</span>;
+        }
+    }
+}
+<span class="c">// Example usage</span>
+<span class="k">var</span> Warren <span class="o">=</span> <span class="k">new</span> Werewolf();
+OtherCode.someFunction(Warren);
+Warren.visit(<span class="s">"Paris"</span>);
+</code></pre></td></tr></table>
+<ul>
+<li>Instance variables can also cause unpredictability</li>
+<li>Same effect as global variables from function's POV</li>
+</ul>
+<aside class="notes">
+Also, here's another example showing how even instance variables can make things unpredictable:<br/>
+If we call `visit` with the input "Paris", will the output be "Hello, Paris!"?<br/>
+Or will it be "Awoooo!"? We don't know until we know how `someFunction` works:<br/>
+does it call `checkMoonPhase` or not?<br/>
+The `visit` method has a *hidden dependency* on the `checkMoonPhase` method!<br/>
+Any time you see the `visit` method, you need to know whether `checkMoonPhase`<br/>
+has been called beforehand. So you've greatly increased the complexity of your<br/>
+code by writing the `Werewolf` class like this: because the `visit` function<br/>
+has a hidden dependency on `checkMoonPhase`, you can't predict what the `visit`<br/>
+method will do in any given situation, unless you understand the *entire<br/>
+program path* between when you created that instance and when you called its<br/>
+`visit` method. This makes it very hard to refactor the `visit` function, or<br/>
+call it in isolation in a unit test.<br/>
+</aside>
+</section>
+<section >
+<table class="pre"><tr><td class="lines"><pre class="fssnip"><span class="l"> 1: </span>
+<span class="l"> 2: </span>
+<span class="l"> 3: </span>
+<span class="l"> 4: </span>
+<span class="l"> 5: </span>
+<span class="l"> 6: </span>
+<span class="l"> 7: </span>
+<span class="l"> 8: </span>
+<span class="l"> 9: </span>
+<span class="l">10: </span>
+<span class="l">11: </span>
+<span class="l">12: </span>
+<span class="l">13: </span>
+<span class="l">14: </span>
+<span class="l">15: </span>
+<span class="l">16: </span>
+<span class="l">17: </span>
+</pre></td>
+<td class="snippet"><pre class="fssnip highlighted"><code lang="cs"><span class="k">class</span> Werewolf {
+    <span class="k">public</span> <span class="k">static</span> <span class="k">bool</span> checkMoonPhase(IMoonPhase theMoon) {
+        <span class="k">return</span> theMoon.IsFull <span class="o">?</span> <span class="k">true</span> <span class="o">:</span> <span class="k">false</span>;
+    }
+    <span class="k">public</span> <span class="k">string</span> visit(<span class="k">string</span> cityName, <span class="k">bool</span> inWolfForm) {
+        <span class="k">if</span> (inWolfForm <span class="o">|</span><span class="o">|</span> cityName <span class="o">=</span><span class="o">=</span> <span class="s">"London"</span>) {
+            <span class="k">return</span> <span class="s">"Awoooo!"</span>;
+        } <span class="k">else</span> {
+            <span class="k">return</span> $<span class="s">"Hello, {cityName}!"</span>;
+        }
+    }
+}
+<span class="c">// Example usage</span>
+<span class="k">var</span> Warren <span class="o">=</span> <span class="k">new</span> Werewolf();
+OtherCode.someFunction(Warren);
+<span class="k">bool</span> moonFull <span class="o">=</span> <span class="k">false</span>; <span class="c">// Or moonFull = Warren.checkMoonPhase();</span>
+Warren.visit(<span class="s">"Paris"</span>, moonFull);
+</code></pre></td></tr></table>
+<ul>
+<li>Not yet 100% predictable (still has external dependency)</li>
+<li>But <code>visit</code> method is predictable now</li>
+</ul>
+<aside class="notes">
+This class is still not 100% predictable code since it depends on an external<br/>
+factor, the moon... but the `visit` function has become predictable. Its<br/>
+dependencies are all obvious, and it is not tracking any kind of internal state<br/>
+that isn't visible in its parameters. So we can safely pass a `Werewolf` instance<br/>
+to other code without worrying that the other code will change the behavior of<br/>
+the instance we have a reference to. Our `Werewolf` class has become *immutable*.<br/>
+</aside>
+</section>
+</section>
+<section >
+<section >
+<h2>List example</h2>
+<ul>
+<li>No code for this one since it's easy to imagine</li>
+</ul>
+</section>
+<section >
+<h3>Problem specification</h3>
+<ul>
+<li>Have a list of names and addresses</li>
+<li>Want to print envelopes on laser printer</li>
+<li>Printing is slow, so don't block UI</li>
+</ul>
+<aside class="notes">
+Another example, this time without code because it's pretty easy to visualise.<br/>
+<br/>
+Let's say you're writing a mailing-list manager program, something like TntMPD. You<br/>
+have a list of names and addresses that you're going to send to the laser printer<br/>
+to print on envelopes. It prints one envelope at a time, so the whole batch will<br/>
+take about 5 minutes, so you don't want to freeze the UI during printing.<br/>
+</aside>
+</section>
+<section >
+<h3>How do we solve this?</h3>
+<ul>
+<li>Do printing on a background thead?</li>
+<li>Background thread == parallelism</li>
+<li>Parallelism is <strong><em>HARD</em></strong>.</li>
+</ul>
+<aside class="notes">
+So how do you approach this problem? Because there's danger here: you've just added *parallelism*.<br/>
+And as anyone with any experience knows, parallelism is *HARD*.<br/>
+</aside>
+</section>
+<section >
+<h3>Naïve approach without locks</h3>
+<ul>
+<li>Two roommates, Jerry Brown and John Smith</li>
+<li>Update their address while halfway through printing</li>
+<li>Results in inconsistent output</li>
+</ul>
+<aside class="notes">
+First let's look at a naïve approach: you just launch a background thread to print<br/>
+the envelopes, and let the user continue to use the UI. Then what can happen is this.<br/>
+You have several people on your mailing lists who are single people living together<br/>
+as roommates. John Smith and Jerry Brown both live at 123 Main St. But because your<br/>
+records are sorted by last name, they are in two different parts of the data. Now,<br/>
+as you print out envelopes, you've already printed out Jerry Brown's envelope, but<br/>
+you haven't yet printed out an envelope for John Smith. Then the user updates the<br/>
+records for Jerry Brown and John Smith, because they've recently moved to 456 Washington Dr.<br/>
+They still live together, so the user updated both records, well before the printing<br/>
+process gets around to printing John Smith's envelope. So now you've printed an envelope<br/>
+for Jerry Brown at 123 Main St., and John Smith at 456 Washington Dr., and your program<br/>
+gives the false impression not entirely gonethat the roommates don't live together anymore.<br/>
+</aside>
+</section>
+<section >
+<h3>How to avoid this?</h3>
+<h4>Attempt #1: lock the whole list</h4>
+<ul>
+<li>Now UI is locked in read-only mode</li>
+<li>Lost the benefit of the background thread</li>
+</ul>
+<aside class="notes">
+To avoid that, you could lock the whole list as you print it, but then you've lost the<br/>
+benefit of keeping the UI active.<br/>
+</aside>
+</section>
+<section >
+<h3>How to avoid this?</h3>
+<h4>Attempt #2: copy the list first</h4>
+<ul>
+<li>Window of vulnerability is smaller</li>
+<li>But still vulnerable anyway</li>
+</ul>
+<aside class="notes">
+Or you could make a copy of the list and then print<br/>
+from your local copy, which means that you might not be printing the *latest* data,<br/>
+but at least you'd be printing *consistent* data. (I.e., both roommates would still<br/>
+show at their old location). However, then you've only narrowed the window of vulnerability,<br/>
+not removed it: no matter how fast the copy runs, it isn't atomic, and some other process<br/>
+could still do an update while you're in the middle of the copy and you'd get inconsistent<br/>
+data anyway.<br/>
+</aside>
+</section>
+<section >
+<h3>How to avoid this?</h3>
+<h4>Attempt #3: lock list, copy it, unlock it</h4>
+<ul>
+<li>Can't get inconsistent data</li>
+<li>
+Locks have other issues
+<ul>
+<li>Deadlocks</li>
+<li>Resource starvation</li>
+<li>"Lock convoys"</li>
+</ul>
+</li>
+</ul>
+<aside class="notes">
+The only safe way to do it is to lock the list, copy it, then unlock it.<br/>
+And even that isn't completely safe, because whenever you're dealing with locks, there<br/>
+are complications. Deadlocks, resource starvation, and "lock convoys" are just some of<br/>
+the problems that can happen when you introduce locks into your code. ("Lock convoys"<br/>
+are where threads are queueing up to get a lock, and threads arrive in the queue faster<br/>
+than the ones at the head can acquire the lock and leave the queue, so it just gets longer<br/>
+and longer until your program grinds to a halt.) But there's no<br/>
+other way to do parallelism safely than with locks... or is there?<br/>
+</aside>
+</section>
+<section >
+<h3>Another way to do it</h3>
+<ul>
+<li>Requires paradigm shift</li>
+<li>Don't modify lists in-place</li>
+<li>Every operation returns a new list</li>
+<li>Data structures are <strong>immutable</strong></li>
+<li>We'll look at performance in a minute</li>
+</ul>
+<aside class="notes">
+Turns out there is another way to do parallelism safely, but it requires a paradigm shift.<br/>
+Most programmers are used to modifying data in-place, but what if every modification you<br/>
+did to your data returned a *new* data structure, leaving the old one unchanged? This is<br/>
+the "immutable data" paradigm. There would be a performance loss, of course, but we'll look<br/>
+at performance in a minute. Right now let's just look at semantics. If the `List.Add` method<br/>
+returns a new list, and the old list is unmodified, then you can just pass a reference to<br/>
+your printing function and it doesn't have to make its own copy. The address update will<br/>
+create a new list, and the reference that your printing function is holding onto still<br/>
+contains the same data that it used to. So the effect is just like making a defensive copy:<br/>
+you'll print consistent data, but it might be a few minutes out of date. However, the<br/>
+printing function is a lot simpler since it doesn't have to be paranoid about locking: it<br/>
+can be a simple for loop. So you've lost some performance, but you've gained simplicity.<br/>
+</aside>
+</section>
+<section >
+<h3>Performance implications</h3>
+<ul>
+<li>Copying arrays is O(N)</li>
+<li>Appending N items would be O(N²) if you copy each time</li>
+<li>No way around this... <strong>if</strong> you use arrays</li>
+</ul>
+<aside class="notes">
+Now let's talk about performance. If you're storing your data in an array, then every<br/>
+time you make a copy, you're copying the whole array. No way around that O(N) performance,<br/>
+and that makes the immutable-data paradigm look like a bad idea. But there are other data<br/>
+structures that you can use.<br/>
+</aside>
+</section>
+<section >
+<h3>Other ways to represent lists</h3>
+<p><img src="images/9-annotated-white-bg.png" alt="Lists as B-trees" /></p>
+<aside class="notes">
+If you use a B-tree and put your data in leaf nodes only, you can treat that as if it was<br/>
+a list. Then when you update an item, you only copy that leaf nodes, and all the nodes<br/>
+above it on a path to the root. The other nodes can stay in place. The old root still points<br/>
+to a list containing the old data, and the new root points to a list containing the new data.<br/>
+And the only copies you have to make are a single path to the root. If you have two items<br/>
+in each leaf, then the number of nodes in that path is on the order of log-2 N. If you have<br/>
+four items in each leaf, then you have log base 4 of N nodes to copy. Most implementations of<br/>
+this data structure is a branching factor of 32, so each of these leaf nodes has 32 items in<br/>
+it. So in a list of 1024 items, you need to copy one 32-item leaf node, and one 32-item root.<br/>
+By copying 64 items, you've effectively copied the entire list. In a list of 32 *thousand* items,<br/>
+you have to copy 96 items to update one. So while the performance of this immutable data<br/>
+structure is slightly less than the naïve array-based implementation, it's still good enough<br/>
+that in practice, you won't notice a slowdown.<br/>
+</aside>
+</section>
+<section >
+<h3>Updating an item</h3>
+<p><img src="images/update-white-bg.png" alt="Updating an item" /></p>
+<aside class="notes">
+If you use a B-tree and put your data in leaf nodes only, you can treat that as if it was<br/>
+a list. Then when you update an item, you only copy that leaf nodes, and all the nodes<br/>
+above it on a path to the root. The other nodes can stay in place. The old root still points<br/>
+to a list containing the old data, and the new root points to a list containing the new data.<br/>
+And the only copies you have to make are a single path to the root. If you have two items<br/>
+in each leaf, then the number of nodes in that path is on the order of log-2 N. If you have<br/>
+four items in each leaf, then you have log base 4 of N nodes to copy. Most implementations of<br/>
+this data structure is a branching factor of 32, so each of these leaf nodes has 32 items in<br/>
+it. So in a list of 1024 items, you need to copy one 32-item leaf node, and one 32-item root.<br/>
+By copying 64 items, you've effectively copied the entire list. In a list of 32 *thousand* items,<br/>
+you have to copy 96 items to update one. So while the performance of this immutable data<br/>
+structure is slightly less than the naïve array-based implementation, it's still good enough<br/>
+that in practice, you won't notice a slowdown.<br/>
+</aside>
+</section>
+<section >
+<h3>Higher branching factors</h3>
+<p><img src="images/4-way-branching-white-bg.png" alt="A 4-way branching tree" /></p>
+<aside class="notes">
+If you use a B-tree and put your data in leaf nodes only, you can treat that as if it was<br/>
+a list. Then when you update an item, you only copy that leaf nodes, and all the nodes<br/>
+above it on a path to the root. The other nodes can stay in place. The old root still points<br/>
+to a list containing the old data, and the new root points to a list containing the new data.<br/>
+And the only copies you have to make are a single path to the root. If you have two items<br/>
+in each leaf, then the number of nodes in that path is on the order of log-2 N. If you have<br/>
+four items in each leaf, then you have log base 4 of N nodes to copy. Most implementations of<br/>
+this data structure is a branching factor of 32, so each of these leaf nodes has 32 items in<br/>
+it. So in a list of 1024 items, you need to copy one 32-item leaf node, and one 32-item root.<br/>
+By copying 64 items, you've effectively copied the entire list. In a list of 32 *thousand* items,<br/>
+you have to copy 96 items to update one. So while the performance of this immutable data<br/>
+structure is slightly less than the naïve array-based implementation, it's still good enough<br/>
+that in practice, you won't notice a slowdown.<br/>
+</aside>
+</section>
+<section >
+<h3>Performance</h3>
+<ul>
+<li>
+Random access by index: effective <strong>O(1)</strong>
+<ul>
+<li>Technically O(log₃₂N)</li>
+<li>But that's 7 or less for 2³² items</li>
+</ul>
+</li>
+<li>Appending an item: <strong>O(1)</strong></li>
+<li>Removing the last item: <strong>O(1)</strong></li>
+<li>
+Inserting item at arbitrary index: <strong>O(N)</strong>
+<ul>
+<li>But I'm working on improving that</li>
+<li>Will be <strong>O(1)</strong> when I'm finished</li>
+</ul>
+</li>
+<li>
+Deleting item at arbitrary index: <strong>O(N)</strong>
+<ul>
+<li>But I'm working on improving that, will also be <strong>O(1)</strong></li>
+</ul>
+</li>
+<li>
+Splitting into two lists: <strong>O(N)</strong>
+<ul>
+<li>But... yeah, you get the idea. Will be <strong>O(1)</strong> also</li>
+</ul>
+</li>
+<li>
+Concatenating two lists: <strong>O(N)</strong>
+<ul>
+<li>... yep. Will also be <strong>O(1)</strong>, though with large constant factor</li>
+</ul>
+</li>
+</ul>
+<aside class="notes">
+Accessing any item: effective O(1) - really O(log₃₂N) but that's got an upper bound of 7 for 2³² items, so effectively constant<br/>
+Appending an item: O(1)<br/>
+Popping last item: O(1)<br/>
+Inserting any item into the middle: O(N), but I'm working on fixing that. Will be O(1) when I'm done.<br/>
+Deleting any item from the middle: O(N), but I'm working on fixing that. Will be O(1) when I'm done.<br/>
+Splitting into two lists: O(N), but I'm working on fixing that. Will be O(1) when I'm done.<br/>
+Concatenating two lists: O(N), but I'm working on fixing that. Will be O(1) (though with a large constant factor of about 1024) when I'm done.<br/>
+</aside>
+</section>
+</section>
+<section >
+<section >
+<h2>Why does it matter?</h2>
+<aside class="notes">
+So why am I spending so much time on parallelism? Because of this graph:<br/>
+</aside>
+</section>
+<section >
+<h3># of cores in consumer CPUs</h3>
+<p><img src="images/core-counts-before-2017.png" alt="CPU cores until 2016" /></p>
+<aside class="notes">
+At the moment, most people have 4-core machines, so parallelizing your code gets you up to a<br/>
+theoretical 4x speedup. There's empirical evidence that parallelized code using data structures<br/>
+like the B-tree I showed you runs slower per thread, typically by anywhere from 20-50%. So if<br/>
+your algorithm runs, say, 100% slower per thread, splitting it across two cores gains you nothing<br/>
+for the work you put into rewriting the algorithm. Splitting it across four cores gets you an<br/>
+algorithm that finishes twice as fast as the single-threaded version, but that's not necessarily<br/>
+worth your time. And only the enthusiasts have 8-core machines right now.<br/>
+</aside>
+</section>
+<section >
+<h3># of cores in consumer CPUs</h3>
+<p><img src="images/core-counts.png" alt="CPU cores through 2017" /></p>
+<aside class="notes">
+But that's about to change. This year, both Intel and AMD released 16-core versions of their CPUs.<br/>
+Intel's CPU actually has up to an 18-core version! This costs $2,000 for the CPU alone, so you're<br/>
+not going to see these 16-core CPUs in our users' machines any time soon. But give it five to ten<br/>
+years, and that's going to change. We're going to see a lot more CPU cores. And where you might<br/>
+have only doubled your speed splitting a program across four processors, you'd multiply your speed<br/>
+by *eight* if it's split among 16 processors. Suddenly the effort of switching to a parallelized<br/>
+algorithm is worth it.<br/>
+</aside>
+</section>
+<section >
+<h3>Parallelism is coming</h3>
+<aside class="notes">
+And what do we know about parallelism?<br/>
+<br/>
+(Show "Mutable data = HARD" table. First a slide with four lines, then the graph. Order of lines<br/>
+on the slide is mutable/single, mutable/parallel, immutable/single, immutable/parallel. Then<br/>
+show the table as a summary, since the mutable/parallel line has some subpoints about locking).<br/>
+</aside>
+</section>
+<section >
+<h3>Parallel or not? Mutable or not?</h3>
+<ul>
+<li class="fragment"><strong>Single</strong>-threaded code, <strong>mutable</strong> data: <strong>easy</strong>
+<ul class="fragment"><li>With the caveats that we just saw, of course</li></ul></li>
+<li class="fragment"><strong>Multi</strong>-threaded code, <strong>mutable</strong> data: <strong style="color: red"><em>HARD!</em></strong></li>
+<ul class="fragment"><li>Race conditions, deadlocks, and resource starvation, oh my!</li></ul></li>
+<li class="fragment"><strong>Single</strong>-threaded code, <strong>immutable</strong> data: <strong>easy</strong></li>
+<ul class="fragment"><li>Though it does require a paradigm shift</li></ul></li>
+<li class="fragment"><strong>Multi</strong>-threaded code, <strong>immutable</strong> data: <strong style="color: #22ff22"><em>EASY!</em></strong></li>
+<ul class="fragment"><li>No locks needed at all!</li>
+<li>Just as easy as single-threaded</li></ul></li>
+</ul>
+</section>
+</section>
+<section >
+<section >
+<h2>Appeal to authority</h2>
+<aside class="notes">
+Now I'm going to do a little appeal to authority, which isn't necessarily a fallacy if the<br/>
+authority you're appealing to is someone who knows what they're talking about. Here's a comment<br/>
+on the Software Engineering section of Stack Overflow, from the person with the second highest<br/>
+reputation on that part of the site (over 100k). This means that his answers have been upvoted<br/>
+about 10,000 times, so you know he knows a little bit about software. His comment:<br/>
+</aside>
+</section>
+<section >
+<blockquote>
+<p>I really cannot overstate the degree to which mutability causes problems in software. Many of the
+practices that are drummed into our heads are in compensation for problems that mutability causes.
+When you take mutability away, you don't need those practices as much.</p>
+</blockquote>
+<p>Source: <a href="https://softwareengineering.stackexchange.com/questions/305018/apis-and-functional-programming">https://softwareengineering.stackexchange.com/questions/305018/apis-and-functional-programming</a></p>
+<aside class="notes">
+As we've seen, if you mutate your data structures, which is what you do in the classic imperative<br/>
+paradigm, you make your code less predictable, because it's harder to understand. Here's why.<br/>
+<br/>
+In any program larger than "Hello, world", you have to do some data manipulation. In fact, that<br/>
+data manipulation is usually the whole *point* of the program. You take in some data, manipulate it,<br/>
+and give it to the user in a form that's somewhat different from how it came in. So to understand<br/>
+your program, one of the first things you need to understand is what changes are happening to that<br/>
+data. In fact, it's usually more important to understand *what* changes are happening, then to understand<br/>
+precisely *how* the changes are happening. Whether you're converting that data to XML by calling this<br/>
+library, or this other library, or by writing your own custom function, the important part is that the<br/>
+data gets output as XML. As Alan Brooks said in "The Mythical Man-Month":<br/>
+</aside>
+</section>
+<section >
+<blockquote>
+<p>Show me your flowcharts and conceal your tables, and I shall continue to be mystified. Show me your tables, and I won’t usually need your flowcharts; they’ll be obvious.</p>
+</blockquote>
+<p><strong>Alan Brooks</strong>, <em>The Mythical Man-Month</em></p>
+<aside class="notes">
+Or, what he would write today:<br/>
+</aside>
+</section>
+<section >
+<blockquote>
+<p>Show me your code and conceal your data structures, and I shall continue to be mystified. Show me your data structures, and I won’t usually need your code; it will be obvious.</p>
+</blockquote>
+<p>What Alan Brooks would say today</p>
+<aside class="notes">
+Likewise, here's what Linus Torvalds wrote about the design of git:<br/>
+</aside>
+</section>
+<section >
+<blockquote>
+<p>git actually has a simple design, with stable and reasonably well-documented data structures. In fact, I'm a huge proponent of designing your code around the data, rather than the other way around, and I think it's one of the reasons git has been fairly successful […] I will, in fact, claim that the difference between a bad programmer and a good one is whether he considers his code or his data structures more important.</p>
+</blockquote>
+<p><strong>Linus Torvalds</strong></p>
+<aside class="notes">
+See also https://softwareengineering.stackexchange.com/questions/163185/torvalds-quote-about-good-programmer/163195#163195<br/>
+</aside>
+</section>
+<section >
+<h3>Data is more important than code</h3>
+<ul>
+<li>Understand data structures</li>
+<li>
+Understand how each function transforms its data
+<ul>
+<li>Input → ??? → output</li>
+</ul>
+</li>
+<li>Leads to a more <strong>declarative</strong> style</li>
+<li>
+Imperative, data-mutating style introduces <strong>time</strong> into the equation
+<ul>
+<li>It matters which of two functions was run first</li>
+<li>Can't tell what code will do on first read</li>
+</ul>
+</li>
+</ul>
+<aside class="notes">
+So we always need to understand our data structures and how each function transforms the data:<br/>
+what its inputs are, and what its outputs will be. If you're using a more declarative style<br/>
+with immutable data structures, where each function basically describes the flow of data<br/>
+from input to output and the transformations it goes through along the way, then Alan Brooks's<br/>
+quote pretty much applies. Understand the data, and you've understood the code already. The code<br/>
+is like a map showing the paths of the data through the program (there can be multiple paths, of<br/>
+course). But if you write in a more imperative, data-mutating style, then in addition to the<br/>
+relatively static world of data transformations, you've also introduced *time* as a factor.<br/>
+Remember my example from the very start of this talk:<br/>
+</aside>
+</section>
+<section >
+<h3>Original example code, revisited</h3>
+<table class="pre"><tr><td class="lines"><pre class="fssnip"><span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+</pre></td>
+<td class="snippet"><pre class="fssnip highlighted"><code lang="cs"><span class="k">var</span> myImportantData <span class="o">=</span> <span class="k">new</span> <span class="k">int</span>[] { <span class="n">1</span>,<span class="n">2</span>,<span class="n">3</span> };
+MyOwnCode.MyFunction(myImportantData);
+SomeoneElsesCode.OtherFunction(myImportantData);
+MyOwnCode.MyFunction(myImportantData);
+</code></pre></td></tr></table>
+<ul>
+<li>It matters whether <code>OtherFunction</code> has run yet or not</li>
+<li>We've introduced <strong>time</strong> as a factor to consider</li>
+</ul>
+<aside class="notes">
+Although I'm passing the same variable into my function, the results of that function may<br/>
+change depending entirely on whether the call is *before* or *after* I call someone else's code.<br/>
+So like I said, we've added the concept of *time* into our code, rather than it being a pure<br/>
+map of data transformations. Which makes the program harder to understand. And you don't have<br/>
+to just take *my* word for it. Edsger Dijkstra wrote:<br/>
+</aside>
+</section>
+<section >
+<blockquote>
+<p>My second remark is that our intellectual powers are rather geared to master static relations and that our
+powers to visualize processes evolving in time are relatively poorly developed.</p>
+</blockquote>
+<p><strong>Edsger Dijkstra</strong></p>
+<aside class="notes">
+(Now fade into second slide as I say, "And by the way, he wrote that just about 50 years ago")<br/>
+</aside>
+</section>
+<section >
+<blockquote>
+<p>My second remark is that our intellectual powers are rather geared to master static relations and that our
+powers to visualize processes evolving in time are relatively poorly developed.</p>
+</blockquote>
+<p><strong>Edsger Dijkstra</strong>, in <em>Go To Statement Considered Harmful</em>, <strong>1968</strong></p>
+<aside class="notes">
+And by the way, I'd like to mention that Edsger Dijkstra is one of the hardest names to<br/>
+spell in all of computer science... :-)<br/>
+</aside>
+</section>
+</section>
+<section >
+<section >
+<h2>Testimonials</h2>
+<aside class="notes">
+These are quotes from the F# testimonials page, selected to make a point.<br/>
+Almost all emphasis is mine, except when it's explicitly stated in original.<br/>
+</aside>
+</section>
+<section >
+<blockquote>
+<p>Immutability-first as a programming technique has <strong>fixed more bugs and bad code</strong> in my applications <strong>than almost anything else</strong> I’ve ever looked at [...] Many languages are evolving to be ready for the future, adding features that support the needs of a modern programming language, but <strong>F# is already there</strong>.</p>
+</blockquote>
+</section>
+<section >
+<blockquote>
+<p>We have been evaluating F# for a year now, and have components in our production systems that have been <strong>bug-free since deployment</strong>.</p>
+</blockquote>
+<aside class="notes">
+That has to be a fluke, right? (pause)<br/>
+</aside>
+</section>
+<section >
+<blockquote>
+<p>Since [switching to F#], we have completely replaced a horrifically buggy legacy code base that had years of work from multiple teams of developers with an unreasonably high LoC, into an F# codebase that is easily <strong>~1/20th the size</strong>, adding many new features, essentially <strong>zero bugs in production</strong>, and doing it all <strong>in less than a year with a small team</strong> where I was the only one with any significant FP experience. I've trained multiple new hires and they have all become proficient quite quickly. Not only that, but we have created a code base that I am extremely proud of.</p>
+</blockquote>
+<aside class="notes">
+Essentially zero bugs in production? That never happens! But now that's two different people saying it.<br/>
+</aside>
+</section>
+<section >
+<blockquote>
+<p>I have now delivered <strong>three business critical projects</strong> written in F#. I am <strong>still waiting for the first bug to come in</strong>. This is not the case with the C# projects I have delivered.</p>
+</blockquote>
+<aside class="notes">
+And now a third person saying it, and we're up to five projects written by three teams, all saying the same thing. This apprently does reduce bugs.<br/>
+</aside>
+</section>
+<section >
+<blockquote>
+<p>F# delivers a sense of <strong>correctness</strong> and <strong>safety</strong>, stronger than other languages I worked with in the past. It is reassuring to know your code will execute exactly as you intend.</p>
+</blockquote>
+</section>
+<section >
+<aside class="notes">
+And besides the safety gain, there's also a productivity gain, as we'll see other people testify to shortly...<br/>
+</aside>
+<blockquote>
+<p>... we have found our F# code to be <strong>concise</strong>, <strong>easy</strong> to write and <strong>reliable</strong> to use.</p>
+</blockquote>
+</section>
+<section >
+<blockquote>
+<p>F# was great because I spent less time figuring out <strong>how to answer</strong> my question and more time <strong>actually answering</strong> the question. The type providers made consuming and integrating hetrogenous datasets a snap and the pattern matching feature <strong>reduced the complexity</strong> of the code <strong>by an order of magnitude</strong> (compared to C#).</p>
+</blockquote>
+</section>
+<section >
+<blockquote>
+<p>When the calculation requires a proper algorithm (i.e. anything that is more complex than a simple for loop), our choice has been F#. I have to say I keep being surprised by how <strong>compact</strong> it is and, nonetheless, how <strong>readable</strong> it is even when I’m reading code that I hadn’t looked at or thought about for six months.</p>
+</blockquote>
+</section>
+<section >
+<blockquote>
+<p>The F# solution offers us an <strong>order of magnitude increase in productivity</strong> and allows one developer to perform the work that are performed by a team of dedicated developers on an existing Java-based solution ...</p>
+</blockquote>
+<p>(Emphasis in original)</p>
+</section>
+<section >
+<blockquote>
+<p>Our first iterations were written in C#, but after switching to F#, we saw a drastic <strong>reduction in code size</strong>, along with an <strong>increase in readability</strong>. We’ll definitely be sticking with F# for all of our future projects.</p>
+</blockquote>
+</section>
+<section >
+<blockquote>
+<p>I am currently consulting for one of the world's largest insurance companies and my predecessor developed an entire pension quote calculator (typically scheduled to take <strong>300-400 man days</strong>) entirely in F# in <strong>under 100 days</strong> with <strong>no prior F# experience at all</strong>.</p>
+</blockquote>
+<aside class="notes">
+Source: https://fsharpnews.blogspot.co.uk/2017/10/what-are-advantages-of-f-over-c.html<br/>
+</section>
+</section>
+
+
+        </div>
+    </div>
+    <script src="lib/js/head.min.js"></script>
+    <script src="js/reveal.js"></script>
+    <script>
+        // Add the nohighlight class and data-noescape attribute to code elements that have already been formatted by FSharp.Formatting
+        $('pre.highlighted code').addClass('nohighlight').attr('data-noescape', '');
+
+        // Full list of configuration options available here:
+        // https://github.com/hakimel/reveal.js#configuration
+        Reveal.initialize({
+            controls: true,
+            progress: true,
+            history: true,
+            center: true,
+
+            transition: 'slide', // default/cube/page/concave/zoom/linear/fade/none
+
+            // Parallax scrolling
+            // parallaxBackgroundImage: 'https://s3.amazonaws.com/hakim-static/reveal-js/reveal-parallax-1.jpg',
+            // parallaxBackgroundSize: '2100px 900px',
+
+            // Optional libraries used to extend on reveal.js
+            dependencies: [
+                { src: 'lib/js/classList.js', condition: function () { return !document.body.classList; } },
+                { src: 'plugin/markdown/marked.js', condition: function () { return !!document.querySelector('[data-markdown]'); } },
+                { src: 'plugin/markdown/markdown.js', condition: function () { return !!document.querySelector('[data-markdown]'); } },
+                { src: 'plugin/highlight/highlight.js', async: true, callback: function () { hljs.initHighlightingOnLoad(); } },
+                { src: 'plugin/zoom-js/zoom.js', async: true, condition: function () { return !!document.body.classList; } },
+                { src: 'plugin/notes/notes.js', async: true, condition: function () { return !!document.body.classList; } }
+            ]
+        });
+
+    </script>
+</body>
+</html>
+

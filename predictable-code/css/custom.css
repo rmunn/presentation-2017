@@ -1,0 +1,12 @@
+strong {
+    color: #e7ad52;
+}
+
+code {
+    color: #e7ad52;
+    background: inherit;
+}
+
+.reveal blockquote {
+    background: rgba(255, 255, 255, 0.15) !important;
+}
